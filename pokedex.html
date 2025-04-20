@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <!-- Enable full‑screen web app mode on iOS -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Interactive Pokédex</title>
+  <style>
+    /* reset & layout */
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body { 
+      background: #F0F0F0; 
+      font-family: -apple-system, BlinkMacSystemFont, sans-serif; 
+      display: flex; 
+      justify-content: center; 
+      align-items: flex-start; 
+      padding: 20px; 
+    }
+    .pokedex {
+      width: 100%; 
+      max-width: 400px; 
+      background: #C03028; 
+      border-radius: 20px; 
+      overflow: hidden; 
+      border: 4px solid #333;
+    }
+    .header {
+      background: #f5f5f5; 
+      padding: 10px; 
+      text-align: center; 
+    }
+    .header h1 {
+      font-size: 1.5rem; 
+      color: #333;
+    }
+    /* screen & loader */
+    .screen {
+      background: #3D7199; 
+      height: 240px; 
+      position: relative; 
+      padding: 10px; 
+      color: #fff;
+    }
+    #loader {
+      position: absolute; 
+      top: 50%; 
+      left: 50%; 
+      transform: translate(-50%, -50%); 
+      width: 60px; 
+      height: 60px; 
+      display: none;
+    }
+    .loader.show {
+      display: block; 
+      animation: spin 1s linear infinite; 
+      -webkit-animation: spin 1s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to   { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    @-webkit-keyframes spin {
+      from { transform: translate(-50%, -50%) rotate(0deg); }
+      to   { transform: translate(-50%, -50%) rotate(360deg); }
+    }
+    /* sprite fade‑in */
+    .pokemon-img {
+      display: block; 
+      margin: 10px auto; 
+      width: 120px; 
+      height: 120px; 
+      animation: fade-in 0.5s ease-in-out; 
+      -webkit-animation: fade-in 0.5s ease-in-out;
+    }
+    @keyframes fade-in {
+      from { opacity: 0; transform: scale(0.8); }
+      to   { opacity: 1; transform: scale(1); }
+    }
+    @-webkit-keyframes fade-in {
+      from { opacity: 0; -webkit-transform: scale(0.8); }
+      to   { opacity: 1; -webkit-transform: scale(1); }
+    }
+    /* stats and controls */
+    .stats {
+      background: #fff; 
+      color: #333; 
+      padding: 10px; 
+      border-top: 2px solid #333;
+    }
+    .stats table {
+      width: 100%; 
+      border-collapse: collapse;
+    }
+    .stats th, .stats td {
+      padding: 4px 8px; 
+      text-align: left; 
+      border-bottom: 1px solid #ddd; 
+      font-size: 0.9rem;
+    }
+    .controls {
+      padding: 10px; 
+      background: #E0E0E0;
+    }
+    .controls input {
+      width: calc(100% - 22px); 
+      padding: 8px; 
+      font-size: 1rem; 
+      margin-bottom: 8px;
+    }
+    .controls button {
+      width: 100%; 
+      padding: 10px; 
+      font-size: 1rem; 
+      background: #333; 
+      color: #fff; 
+      border: none; 
+      border-radius: 4px;
+    }
+  </style>
+</head>
+<body>
+  <div class="pokedex">
+    <div class="header">
+      <h1>Interactive Pokédex</h1>
+    </div>
+    <div class="screen">
+      <img id="loader" src="https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/items/poke-ball.png" alt="Loading">
+      <div id="content" style="text-align:center; padding-top:60px;">
+        Enter a Pokémon name or ID below
+      </div>
+    </div>
+    <div class="stats" id="stats"></div>
+    <div class="controls">
+      <input type="text" id="pokemonInput" placeholder="e.g. pikachu or 25">
+      <button id="searchBtn">Search</button>
+    </div>
+  </div>
+
+  <script>
+    const loader   = document.getElementById('loader');
+    const content  = document.getElementById('content');
+    const statsDiv = document.getElementById('stats');
+    const input    = document.getElementById('pokemonInput');
+    const button   = document.getElementById('searchBtn');
+
+    function showLoader() {
+      loader.classList.add('show');
+      content.style.display = 'none';
+      statsDiv.innerHTML = '';
+    }
+    function hideLoader() {
+      loader.classList.remove('show');
+      content.style.display = 'block';
+    }
+
+    async function getPokemon(query) {
+      const q = query.trim().toLowerCase();
+      if (!q) return;
+      showLoader();
+      try {
+        const res = await fetch('https://pokeapi.co/api/v2/pokemon/' + encodeURIComponent(q));
+        if (!res.ok) throw new Error('Not found');
+        const data = await res.json();
+        hideLoader();
+
+        const name = data.name[0].toUpperCase() + data.name.slice(1);
+        content.innerHTML =
+          `<h2>${name} (#${data.id})</h2>
+           <img src="${data.sprites.front_default}" class="pokemon-img" alt="${name}">`;
+
+        // Build stats table
+        let table = '<table><tr><th>Stat</th><th>Value</th></tr>';
+        data.stats.forEach(s => {
+          const statName = s.stat.name.replace('-', ' ').toUpperCase();
+          table += `<tr><td>${statName}</td><td>${s.base_stat}</td></tr>`;
+        });
+        table += '</table>';
+        statsDiv.innerHTML = table;
+
+      } catch (err) {
+        hideLoader();
+        content.innerHTML = '<p>Pokémon not found. Please try again.</p>';
+      }
+    }
+
+    button.addEventListener('click', () => getPokemon(input.value));
+    input.addEventListener('keypress', e => {
+      if (e.key === 'Enter') getPokemon(input.value);
+    });
+  </script>
+</body>
+</html>
